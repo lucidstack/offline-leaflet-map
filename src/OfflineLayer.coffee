@@ -134,13 +134,13 @@ module.exports = class OfflineLayer extends L.TileLayer
     )
 
   # calculateNbTiles includes potentially already saved tiles.
-  calculateNbTiles: (zoomLevelLimit) ->
+  calculateNbTiles: (zoomLevelLimit, bounds) ->
     if @_map.getZoom() < @_minZoomLevel
       @_reportError("ZOOM_LEVEL_TOO_LOW")
       return -1
 
     count = 0
-    tileImagesToQuery = @_getTileImages(zoomLevelLimit)
+    tileImagesToQuery = @_getTileImages(zoomLevelLimit, bounds)
     for key of tileImagesToQuery
       count++
     return count
@@ -153,14 +153,17 @@ module.exports = class OfflineLayer extends L.TileLayer
   # Returns the tiles currently displayed
   # @_tiles could return tiles that are currently loaded but not displayed
   # that is why the tiles are recalculated here.
-  _getTileImages: (zoomLevelLimit) ->
+  _getTileImages: (zoomLevelLimit, bounds) ->
     zoomLevelLimit = zoomLevelLimit || @_map.getMaxZoom()
 
     tileImagesToQuery = {}
 
     map = @_map
     startingZoom = map.getZoom()
-    bounds = map.getPixelBounds()
+
+    unless bounds?
+      bounds = map.getPixelBounds()
+
     tileSize = @_getTileSize()
 
     # bounds are rounded down since a tile cover all the pixels from it's rounded down value until the next tile
@@ -196,8 +199,7 @@ module.exports = class OfflineLayer extends L.TileLayer
 
     return tileImagesToQuery
 
-  # saves the tiles currently on screen + lower and higher zoom levels.
-  saveTiles: (zoomLevelLimit, onStarted, onSuccess, onError) ->
+  saveTiles: (zoomLevelLimit, onStarted, onSuccess, onError, bounds) ->
     @_alreadyReportedErrorForThisActions = false
 
     if(!@_tileImagesStore)
@@ -215,8 +217,8 @@ module.exports = class OfflineLayer extends L.TileLayer
       onError("ZOOM_LEVEL_TOO_LOW")
       return
 
-    #lock UI
-    tileImagesToQuery = @_getTileImages(zoomLevelLimit)
+    tileImagesToQuery = @_getTileImages(zoomLevelLimit, bounds)
+
     @_tileImagesStore.saveImages(tileImagesToQuery, onStarted, onSuccess, (error) =>
       @_reportError("SAVING_TILES", error)
       onError(error)
@@ -283,6 +285,3 @@ module.exports = class OfflineLayer extends L.TileLayer
   _createTileKey: (x, y, z) ->
     tilePoint = @_createNormalizedTilePoint(x, y, z)
     return tilePoint.x + ", " + tilePoint.y + ", " + tilePoint.z
-
-
-
